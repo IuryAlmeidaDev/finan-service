@@ -6,12 +6,12 @@
 
 **Architecture:** Aplicação Quarkus modular por capacidade (`account`, `category`, `transaction`, `installment`, `recurring`, `budget`, `goal`, `tag`, `report`, `taskintegration`), com entidades Panache encapsuladas por repositories e services transacionais. Recursos REST somente validam/transcodificam HTTP; cálculos monetários e regras de escopo ficam em classes de domínio puras; Kafka e jobs chamam os mesmos services.
 
-**Tech Stack:** Java 21, Quarkus 3.31.2, Maven Wrapper, Hibernate ORM with Panache, PostgreSQL, Flyway, Quarkus REST Jackson, Hibernate Validator, SmallRye Reactive Messaging Kafka, SmallRye Fault Tolerance, Scheduler, JUnit 5, AssertJ, REST Assured e Testcontainers.
+**Tech Stack:** Java 21, Quarkus 3.37.3, Maven Wrapper, Hibernate ORM with Panache, PostgreSQL, Flyway, Quarkus REST Jackson, Hibernate Validator, SmallRye Reactive Messaging Kafka, SmallRye Fault Tolerance, Scheduler, JUnit, AssertJ, REST Assured e Testcontainers.
 
 ## Global Constraints
 
-- Usar Java 21 e o BOM `io.quarkus.platform:quarkus-bom:3.31.2`; essa versão e os artefatos foram conferidos na documentação oficial Quarkus.
-- Dependências Quarkus: `quarkus-rest-jackson`, `quarkus-hibernate-orm-panache`, `quarkus-jdbc-postgresql`, `quarkus-flyway`, `quarkus-hibernate-validator`, `quarkus-messaging-kafka`, `quarkus-smallrye-fault-tolerance`, `quarkus-scheduler`, `quarkus-junit5` e `rest-assured`.
+- Usar Java 21, BOM `io.quarkus.platform:quarkus-bom:3.37.3` e plugin `io.quarkus.platform:quarkus-maven-plugin:3.37.3`, alinhados ao baseline validado do Task Service.
+- Dependências Quarkus: `quarkus-rest-jackson`, `quarkus-hibernate-orm-panache`, `quarkus-jdbc-postgresql`, `quarkus-flyway`, `quarkus-hibernate-validator`, `quarkus-messaging-kafka`, `quarkus-smallrye-fault-tolerance`, `quarkus-scheduler`, `quarkus-junit` e `rest-assured`.
 - Banco isolado `finance_db`; migrations são a única forma de criar/alterar schema.
 - Dinheiro é sempre `BigDecimal` com escala 2 e `RoundingMode.UNNECESSARY`; persistência usa `numeric(19,2)`. Nunca usar `float` ou `double`.
 - Moeda padrão `BRL`; datas financeiras usam `LocalDate`; auditoria usa UTC (`Instant` no contrato e `LocalDateTime` UTC no banco).
@@ -69,16 +69,16 @@ Tópico: `task.reopened.events`.
 
 ## Mapa de arquivos
 
-- `pom.xml`, `.mvn/wrapper/*`, `mvnw`, `mvnw.cmd`: build reproduzível.
+- `pom.xml`, `.mvn/wrapper/maven-wrapper.properties`, `mvnw`, `mvnw.cmd`: build reproduzível.
 - `src/main/resources/application.properties`: PostgreSQL, Flyway, Kafka, scheduler, limites HTTP.
 - `src/main/resources/db/migration/V1__finance_schema.sql`: schema, constraints, índices.
 - `src/main/resources/db/migration/V2__seed_categories.sql`: categorias literais da Spec.
-- `src/main/java/dev/iury/lifeos/finance/common/*`: dinheiro, relógio, paginação e erros HTTP.
+- `src/main/java/dev/iury/lifeos/finance/common/Money.java`, `src/main/java/dev/iury/lifeos/finance/common/TimeProvider.java`, `src/main/java/dev/iury/lifeos/finance/common/SystemTimeProvider.java` e `src/main/java/dev/iury/lifeos/finance/common/PageResponse.java`: utilitários compartilhados.
 - Cada pacote de capacidade contém entidade, repository, DTO, service e resource apenas quando necessário.
-- `src/test/java/.../domain/*Test.java`: regras puras.
-- `src/test/java/.../*RepositoryTest.java`: PostgreSQL real via Dev Services/Testcontainers.
-- `src/test/java/.../*ResourceTest.java`: contrato HTTP REST Assured.
-- `src/test/java/.../taskintegration/*Test.java`: Kafka real e idempotência.
+- `src/test/java/dev/iury/lifeos/finance/common/MoneyTest.java`: regras monetárias puras.
+- `src/test/java/dev/iury/lifeos/finance/repository/FinanceRepositoryTest.java`: PostgreSQL real via Dev Services/Testcontainers.
+- `src/test/java/dev/iury/lifeos/finance/api/CoreResourcesTest.java` e `src/test/java/dev/iury/lifeos/finance/api/ExtendedResourcesTest.java`: contratos HTTP REST Assured.
+- `src/test/java/dev/iury/lifeos/finance/taskintegration/TaskEventKafkaTest.java`: Kafka real e idempotência.
 - `README.md`: execução, configuração, endpoints, jobs e contratos Kafka.
 
 ---
@@ -107,7 +107,7 @@ Expected: FAIL porque ainda não há projeto Maven/configuração Quarkus.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Gere o wrapper Maven 3.9.11 e `pom.xml` com Java 21, BOM 3.31.2 e todas as dependências da seção Global Constraints, mais `org.assertj:assertj-core` em test. Configure `quarkus.http.port=8082`, datasource PostgreSQL apontando a `${DB_URL:jdbc:postgresql://localhost:5432/finance_db}`, usuário/senha `${DB_USER:postgres}`/`${DB_PASSWORD:postgres}`, Flyway migrate-at-start, `%test.quarkus.datasource.devservices.enabled=true`, `%test.quarkus.kafka.devservices.enabled=true`, attachment directory e limite multipart 10 MiB.
+Gere o wrapper Maven 3.9.11 e `pom.xml` com Java 21, BOM e plugin Quarkus 3.37.3 e todas as dependências da seção Global Constraints, mais `org.assertj:assertj-core` em test. Configure `quarkus.http.port=8082`, datasource PostgreSQL apontando a `${DB_URL:jdbc:postgresql://localhost:5432/finance_db}`, usuário/senha `${DB_USER:postgres}`/`${DB_PASSWORD:postgres}`, Flyway migrate-at-start, `%test.quarkus.datasource.devservices.enabled=true`, `%test.quarkus.kafka.devservices.enabled=true`, attachment directory e limite multipart 10 MiB.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -156,12 +156,33 @@ Run: `rtk git add src/main/resources/db/migration src/test/java/dev/iury/lifeos/
 - Create: `src/main/java/dev/iury/lifeos/finance/common/Money.java`
 - Create: `src/main/java/dev/iury/lifeos/finance/common/TimeProvider.java`
 - Create: `src/main/java/dev/iury/lifeos/finance/common/SystemTimeProvider.java`
-- Create: `src/main/java/dev/iury/lifeos/finance/model/*.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/common/PageResponse.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/model/Account.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/model/AccountType.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/model/Attachment.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/model/BalanceEffect.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/model/Budget.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/model/Category.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/model/CategoryType.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/model/FinancialTransaction.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/model/IncomeGoal.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/model/InstallmentGroup.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/model/InstallmentStatus.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/model/Period.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/model/ProgressStatus.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/model/RecurrenceScope.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/model/RecurringFrequency.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/model/RecurringRule.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/model/RolloverType.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/model/Tag.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/model/TransactionTag.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/model/TransactionTagId.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/model/TransactionType.java`
 - Test: `src/test/java/dev/iury/lifeos/finance/common/MoneyTest.java`
 - Test: `src/test/java/dev/iury/lifeos/finance/model/EntityPersistenceTest.java`
 
 **Interfaces:**
-- Produces: `Money.scale(BigDecimal)`, enums exatos da Spec e entidades JPA correspondentes ao V1.
+- Produces: `Money.scale(BigDecimal)`, `PageResponse<T>`, enums exatos da Spec e entidades JPA correspondentes ao V1.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -174,7 +195,7 @@ Expected: FAIL por classes ausentes.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Implemente `Money.scale` com `value.setScale(2, UNNECESSARY)` e `Money.cents`/`Money.fromCents`. Crie enums `AccountType`, `CategoryType`, `TransactionType`, `InstallmentStatus`, `RecurringFrequency`, `RolloverType`, `ProgressStatus`, `RecurrenceScope`, `Period`. Mapeie entidades com nomes/colunas do SQL, UUID gerado, `@Enumerated(STRING)`, callbacks de timestamps e relações LAZY; `TimeProvider` expõe `Instant instant()` e `LocalDate today()`.
+Implemente `Money.scale` com `value.setScale(2, UNNECESSARY)` e `Money.cents`/`Money.fromCents`. Crie enums `AccountType`, `CategoryType`, `TransactionType`, `BalanceEffect`, `InstallmentStatus`, `RecurringFrequency`, `RolloverType`, `ProgressStatus`, `RecurrenceScope`, `Period`. Implemente `PageResponse<T>(List<T> items,int page,int size,long totalElements,int totalPages)`. Mapeie entidades com nomes/colunas do SQL, UUID gerado, `@Enumerated(STRING)`, callbacks de timestamps e relações LAZY; `TimeProvider` expõe `Instant instant()` e `LocalDate today()`.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -188,7 +209,15 @@ Run: `rtk git add src/main/java/dev/iury/lifeos/finance/common src/main/java/dev
 ### Task 4: Repositories e consultas PostgreSQL
 
 **Files:**
-- Create: `src/main/java/dev/iury/lifeos/finance/repository/*.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/repository/AccountRepository.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/repository/AttachmentRepository.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/repository/BudgetRepository.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/repository/CategoryRepository.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/repository/IncomeGoalRepository.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/repository/InstallmentGroupRepository.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/repository/RecurringRuleRepository.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/repository/TagRepository.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/repository/TransactionRepository.java`
 - Create: `src/main/java/dev/iury/lifeos/finance/transaction/TransactionFilter.java`
 - Test: `src/test/java/dev/iury/lifeos/finance/repository/FinanceRepositoryTest.java`
 
@@ -220,6 +249,7 @@ Run: `rtk git add src/main/java/dev/iury/lifeos/finance/repository src/main/java
 ### Task 5: Domínio de transações, saldos e contas
 
 **Files:**
+- Create: `src/main/java/dev/iury/lifeos/finance/account/Balance.java`
 - Create: `src/main/java/dev/iury/lifeos/finance/account/BalanceCalculator.java`
 - Create: `src/main/java/dev/iury/lifeos/finance/account/AccountService.java`
 - Create: `src/main/java/dev/iury/lifeos/finance/transaction/TransactionValidator.java`
@@ -289,6 +319,7 @@ Run: `rtk git add src/main/java/dev/iury/lifeos/finance/category src/main/java/d
 
 **Files:**
 - Create: `src/main/java/dev/iury/lifeos/finance/installment/InstallmentCalculator.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/installment/InstallmentSlice.java`
 - Create: `src/main/java/dev/iury/lifeos/finance/installment/InstallmentService.java`
 - Test: `src/test/java/dev/iury/lifeos/finance/installment/InstallmentCalculatorTest.java`
 - Test: `src/test/java/dev/iury/lifeos/finance/installment/InstallmentIntegrationTest.java`
@@ -322,6 +353,7 @@ Run: `rtk git add src/main/java/dev/iury/lifeos/finance/installment src/test/jav
 
 **Files:**
 - Create: `src/main/java/dev/iury/lifeos/finance/recurring/RecurringDateCalculator.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/recurring/RecurringUpdateCommand.java`
 - Create: `src/main/java/dev/iury/lifeos/finance/recurring/RecurringService.java`
 - Test: `src/test/java/dev/iury/lifeos/finance/recurring/RecurringDateCalculatorTest.java`
 - Test: `src/test/java/dev/iury/lifeos/finance/recurring/RecurringScopeTest.java`
@@ -523,9 +555,34 @@ Run: `rtk git add src/main/java/dev/iury/lifeos/finance/recurring/RecurringTrans
 ### Task 14: Erros HTTP e DTOs REST
 
 **Files:**
-- Create: `src/main/java/dev/iury/lifeos/finance/common/error/*.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/common/error/FinanceException.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/common/error/ApiError.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/common/error/AccountNotFoundException.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/common/error/AccountNotArchivedException.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/common/error/AccountBalanceNotZeroException.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/common/error/InvalidConfirmationException.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/common/error/CategoryNotFoundException.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/common/error/CategoryHasSubcategoriesException.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/common/error/CategoryHasTransactionsException.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/common/error/SystemCategoryException.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/common/error/TransactionNotFoundException.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/common/error/InvalidTransactionTypeException.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/common/error/CategoryTypeMismatchException.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/common/error/InvalidInstallmentException.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/common/error/AttachmentTooLargeException.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/common/error/MaxAttachmentsException.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/common/error/DuplicateEventException.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/common/error/ValidationException.java`
 - Create: `src/main/java/dev/iury/lifeos/finance/common/error/ApiExceptionMapper.java`
-- Create: `src/main/java/dev/iury/lifeos/finance/api/dto/*.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/api/dto/AccountDtos.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/api/dto/AttachmentDtos.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/api/dto/BudgetDtos.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/api/dto/CategoryDtos.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/api/dto/IncomeGoalDtos.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/api/dto/InstallmentDtos.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/api/dto/RecurringDtos.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/api/dto/TagDtos.java`
+- Create: `src/main/java/dev/iury/lifeos/finance/api/dto/TransactionDtos.java`
 - Test: `src/test/java/dev/iury/lifeos/finance/common/error/ApiExceptionMapperTest.java`
 
 **Interfaces:**
