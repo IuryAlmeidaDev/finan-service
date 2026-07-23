@@ -98,25 +98,81 @@ Tópico: `task.reopened.events`.
 
 - [ ] **Step 1: Write the failing test**
 
-Crie `BootstrapTest` com `@QuarkusTest` e um teste `applicationStarts()` que injeta `AgroalDataSource`, abre conexão e afirma `connection.isValid(2)`.
+Crie primeiro `pom.xml`, `.mvn/wrapper/maven-wrapper.properties`, `mvnw`, `mvnw.cmd` e o teste abaixo, mas ainda não crie `src/main/resources/application.properties`. O wrapper deve usar Maven 3.9.14; o POM deve usar Java 21, BOM/plugin Quarkus 3.37.3 e as dependências da seção Global Constraints, incluindo `quarkus-junit` e `org.assertj:assertj-core` no escopo test.
+
+```java
+package dev.iury.lifeos.finance;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.sql.Connection;
+
+import org.eclipse.microprofile.config.Config;
+import org.junit.jupiter.api.Test;
+
+import io.agroal.api.AgroalDataSource;
+import io.quarkus.test.junit.QuarkusTest;
+import jakarta.inject.Inject;
+
+@QuarkusTest
+class BootstrapTest {
+
+    @Inject
+    Config config;
+
+    @Inject
+    AgroalDataSource dataSource;
+
+    @Test
+    void applicationStarts() throws Exception {
+        assertThat(Runtime.version().feature()).isEqualTo(21);
+        assertThat(config.getValue("quarkus.http.port", Integer.class)).isEqualTo(8082);
+        assertThat(config.getOptionalValue("quarkus.flyway.migrate-at-start", Boolean.class))
+                .contains(true);
+
+        try (Connection connection = dataSource.getConnection()) {
+            assertThat(connection.isValid(2)).isTrue();
+        }
+    }
+}
+```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `rtk mvn test -Dtest=BootstrapTest`
-Expected: FAIL porque ainda não há projeto Maven/configuração Quarkus.
+Run: `rtk proxy cmd.exe /d /c "set \"JAVA_HOME=C:\Users\03573608183\tools\temurin21\jdk-21.0.11+10\"& set \"PATH=%JAVA_HOME%\bin;%PATH%\"& mvnw.cmd test -Dtest=BootstrapTest"`
+Expected: FAIL em `applicationStarts`, com porta configurada diferente de `8082` (default `8080`); sem `application.properties`, a propriedade Flyway também não contém `true`. O projeto, o wrapper, o teste e os Dev Services já iniciam, portanto o RED prova especificamente a configuração ausente.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Gere o wrapper Maven 3.9.11 e `pom.xml` com Java 21, BOM e plugin Quarkus 3.37.3 e todas as dependências da seção Global Constraints, mais `org.assertj:assertj-core` em test. Configure `quarkus.http.port=8082`, datasource PostgreSQL apontando a `${DB_URL:jdbc:postgresql://localhost:5432/finance_db}`, usuário/senha `${DB_USER:postgres}`/`${DB_PASSWORD:postgres}`, Flyway migrate-at-start, `%test.quarkus.datasource.devservices.enabled=true`, `%test.quarkus.kafka.devservices.enabled=true`, attachment directory e limite multipart 10 MiB.
+Crie `src/main/resources/application.properties` exatamente com:
+
+```properties
+quarkus.http.port=8082
+quarkus.datasource.db-kind=postgresql
+quarkus.flyway.migrate-at-start=true
+finance.attachments.directory=${ATTACHMENT_DIR:attachments}
+quarkus.http.limits.max-body-size=10M
+
+%prod.quarkus.datasource.jdbc.url=${DB_URL:jdbc:postgresql://localhost:5432/finance_db}
+%prod.quarkus.datasource.username=${DB_USER:postgres}
+%prod.quarkus.datasource.password=${DB_PASSWORD:postgres}
+
+%test.quarkus.datasource.devservices.enabled=true
+%test.quarkus.datasource.devservices.db-name=finance_db
+%test.quarkus.kafka.devservices.enabled=true
+```
+
+Não configure `quarkus.datasource.jdbc.url`, username ou password globalmente nem nos profiles dev/test: isso preserva a inicialização automática do PostgreSQL Dev Service.
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `rtk .\mvnw.cmd test -Dtest=BootstrapTest`
-Expected: PASS, com PostgreSQL Dev Service saudável.
+Run: `rtk proxy cmd.exe /d /c "set \"JAVA_HOME=C:\Users\03573608183\tools\temurin21\jdk-21.0.11+10\"& set \"PATH=%JAVA_HOME%\bin;%PATH%\"& mvnw.cmd test -Dtest=BootstrapTest"`
+Expected: PASS: Java 21, porta 8082, Flyway ativo e conexão válida com o PostgreSQL Dev Service cujo banco é `finance_db`.
 
 - [ ] **Step 5: Commit**
 
-Run: `rtk git add pom.xml .mvn mvnw mvnw.cmd src/main/resources/application.properties src/test/java/dev/iury/lifeos/finance/BootstrapTest.java && rtk git commit -m "build: bootstrap finance service"`
+Run: `rtk git add pom.xml .mvn/wrapper/maven-wrapper.properties mvnw mvnw.cmd src/main/resources/application.properties src/test/java/dev/iury/lifeos/finance/BootstrapTest.java`
+Run: `rtk git commit -m "build: bootstrap finance service"`
 
 ### Task 2: Schema PostgreSQL e seed de categorias
 
@@ -148,7 +204,8 @@ Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
-Run: `rtk git add src/main/resources/db/migration src/test/java/dev/iury/lifeos/finance/migration && rtk git commit -m "feat: add finance database schema"`
+Run: `rtk git add src/main/resources/db/migration src/test/java/dev/iury/lifeos/finance/migration`
+Run: `rtk git commit -m "feat: add finance database schema"`
 
 ### Task 3: Tipos compartilhados, entidades e precisão monetária
 
@@ -204,7 +261,8 @@ Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
-Run: `rtk git add src/main/java/dev/iury/lifeos/finance/common src/main/java/dev/iury/lifeos/finance/model src/test/java/dev/iury/lifeos/finance/common src/test/java/dev/iury/lifeos/finance/model && rtk git commit -m "feat: map finance domain entities"`
+Run: `rtk git add src/main/java/dev/iury/lifeos/finance/common src/main/java/dev/iury/lifeos/finance/model src/test/java/dev/iury/lifeos/finance/common src/test/java/dev/iury/lifeos/finance/model`
+Run: `rtk git commit -m "feat: map finance domain entities"`
 
 ### Task 4: Repositories e consultas PostgreSQL
 
@@ -244,7 +302,8 @@ Expected: PASS sobre PostgreSQL Dev Service.
 
 - [ ] **Step 5: Commit**
 
-Run: `rtk git add src/main/java/dev/iury/lifeos/finance/repository src/main/java/dev/iury/lifeos/finance/transaction/TransactionFilter.java src/test/java/dev/iury/lifeos/finance/repository && rtk git commit -m "feat: add finance repositories"`
+Run: `rtk git add src/main/java/dev/iury/lifeos/finance/repository src/main/java/dev/iury/lifeos/finance/transaction/TransactionFilter.java src/test/java/dev/iury/lifeos/finance/repository`
+Run: `rtk git commit -m "feat: add finance repositories"`
 
 ### Task 5: Domínio de transações, saldos e contas
 
@@ -280,7 +339,8 @@ Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
-Run: `rtk git add src/main/java/dev/iury/lifeos/finance/account src/main/java/dev/iury/lifeos/finance/transaction src/test/java/dev/iury/lifeos/finance/account src/test/java/dev/iury/lifeos/finance/transaction && rtk git commit -m "feat: implement accounts and transactions"`
+Run: `rtk git add src/main/java/dev/iury/lifeos/finance/account src/main/java/dev/iury/lifeos/finance/transaction src/test/java/dev/iury/lifeos/finance/account src/test/java/dev/iury/lifeos/finance/transaction`
+Run: `rtk git commit -m "feat: implement accounts and transactions"`
 
 ### Task 6: Categorias e tags
 
@@ -313,7 +373,8 @@ Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
-Run: `rtk git add src/main/java/dev/iury/lifeos/finance/category src/main/java/dev/iury/lifeos/finance/tag src/test/java/dev/iury/lifeos/finance/category src/test/java/dev/iury/lifeos/finance/tag && rtk git commit -m "feat: implement categories and tags"`
+Run: `rtk git add src/main/java/dev/iury/lifeos/finance/category src/main/java/dev/iury/lifeos/finance/tag src/test/java/dev/iury/lifeos/finance/category src/test/java/dev/iury/lifeos/finance/tag`
+Run: `rtk git commit -m "feat: implement categories and tags"`
 
 ### Task 7: Parcelamentos
 
@@ -347,7 +408,8 @@ Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
-Run: `rtk git add src/main/java/dev/iury/lifeos/finance/installment src/test/java/dev/iury/lifeos/finance/installment && rtk git commit -m "feat: implement installment purchases"`
+Run: `rtk git add src/main/java/dev/iury/lifeos/finance/installment src/test/java/dev/iury/lifeos/finance/installment`
+Run: `rtk git commit -m "feat: implement installment purchases"`
 
 ### Task 8: Recorrência e escopos de alteração
 
@@ -381,7 +443,8 @@ Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
-Run: `rtk git add src/main/java/dev/iury/lifeos/finance/recurring src/test/java/dev/iury/lifeos/finance/recurring && rtk git commit -m "feat: implement recurring transactions"`
+Run: `rtk git add src/main/java/dev/iury/lifeos/finance/recurring src/test/java/dev/iury/lifeos/finance/recurring`
+Run: `rtk git commit -m "feat: implement recurring transactions"`
 
 ### Task 9: Budgets, rollover e metas de receita
 
@@ -415,7 +478,8 @@ Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
-Run: `rtk git add src/main/java/dev/iury/lifeos/finance/budget src/main/java/dev/iury/lifeos/finance/goal src/test/java/dev/iury/lifeos/finance/budget && rtk git commit -m "feat: implement budgets and income goals"`
+Run: `rtk git add src/main/java/dev/iury/lifeos/finance/budget src/main/java/dev/iury/lifeos/finance/goal src/test/java/dev/iury/lifeos/finance/budget`
+Run: `rtk git commit -m "feat: implement budgets and income goals"`
 
 ### Task 10: Anexos locais seguros
 
@@ -448,7 +512,8 @@ Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
-Run: `rtk git add src/main/java/dev/iury/lifeos/finance/attachment src/test/java/dev/iury/lifeos/finance/attachment && rtk git commit -m "feat: add transaction attachments"`
+Run: `rtk git add src/main/java/dev/iury/lifeos/finance/attachment src/test/java/dev/iury/lifeos/finance/attachment`
+Run: `rtk git commit -m "feat: add transaction attachments"`
 
 ### Task 11: Relatórios e agregações
 
@@ -480,7 +545,8 @@ Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
-Run: `rtk git add src/main/java/dev/iury/lifeos/finance/report src/test/java/dev/iury/lifeos/finance/report && rtk git commit -m "feat: add finance reports"`
+Run: `rtk git add src/main/java/dev/iury/lifeos/finance/report src/test/java/dev/iury/lifeos/finance/report`
+Run: `rtk git commit -m "feat: add finance reports"`
 
 ### Task 12: Consumidores Kafka compatíveis com Task Service
 
@@ -517,7 +583,8 @@ Expected: PASS; payload de round-trip é literal e duplicata mantém uma linha.
 
 - [ ] **Step 5: Commit**
 
-Run: `rtk git add src/main/java/dev/iury/lifeos/finance/taskintegration src/main/resources/application.properties src/test/java/dev/iury/lifeos/finance/taskintegration && rtk git commit -m "feat: consume task lifecycle events"`
+Run: `rtk git add src/main/java/dev/iury/lifeos/finance/taskintegration src/main/resources/application.properties src/test/java/dev/iury/lifeos/finance/taskintegration`
+Run: `rtk git commit -m "feat: consume task lifecycle events"`
 
 ### Task 13: Jobs agendados
 
@@ -550,7 +617,8 @@ Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
-Run: `rtk git add src/main/java/dev/iury/lifeos/finance/recurring/RecurringTransactionGenerator.java src/main/java/dev/iury/lifeos/finance/budget/BudgetRolloverJob.java src/test/java/dev/iury/lifeos/finance/recurring/RecurringTransactionGeneratorTest.java src/test/java/dev/iury/lifeos/finance/budget/BudgetRolloverJobTest.java && rtk git commit -m "feat: schedule recurring and rollover jobs"`
+Run: `rtk git add src/main/java/dev/iury/lifeos/finance/recurring/RecurringTransactionGenerator.java src/main/java/dev/iury/lifeos/finance/budget/BudgetRolloverJob.java src/test/java/dev/iury/lifeos/finance/recurring/RecurringTransactionGeneratorTest.java src/test/java/dev/iury/lifeos/finance/budget/BudgetRolloverJobTest.java`
+Run: `rtk git commit -m "feat: schedule recurring and rollover jobs"`
 
 ### Task 14: Erros HTTP e DTOs REST
 
@@ -608,7 +676,8 @@ Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
-Run: `rtk git add src/main/java/dev/iury/lifeos/finance/common/error src/main/java/dev/iury/lifeos/finance/api/dto src/test/java/dev/iury/lifeos/finance/common/error && rtk git commit -m "feat: standardize finance api errors"`
+Run: `rtk git add src/main/java/dev/iury/lifeos/finance/common/error src/main/java/dev/iury/lifeos/finance/api/dto src/test/java/dev/iury/lifeos/finance/common/error`
+Run: `rtk git commit -m "feat: standardize finance api errors"`
 
 ### Task 15: REST de contas, transações, categorias e tags
 
@@ -642,7 +711,8 @@ Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
-Run: `rtk git add src/main/java/dev/iury/lifeos/finance/api src/test/java/dev/iury/lifeos/finance/api/CoreResourcesTest.java && rtk git commit -m "feat: expose core finance api"`
+Run: `rtk git add src/main/java/dev/iury/lifeos/finance/api src/test/java/dev/iury/lifeos/finance/api/CoreResourcesTest.java`
+Run: `rtk git commit -m "feat: expose core finance api"`
 
 ### Task 16: REST de parcelas, recorrências, budgets, goals e relatórios
 
@@ -677,7 +747,8 @@ Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
-Run: `rtk git add src/main/java/dev/iury/lifeos/finance/api src/test/java/dev/iury/lifeos/finance/api/ExtendedResourcesTest.java && rtk git commit -m "feat: expose finance planning api"`
+Run: `rtk git add src/main/java/dev/iury/lifeos/finance/api src/test/java/dev/iury/lifeos/finance/api/ExtendedResourcesTest.java`
+Run: `rtk git commit -m "feat: expose finance planning api"`
 
 ### Task 17: Testes de contrato completos e documentação
 
@@ -710,7 +781,8 @@ Expected: BUILD SUCCESS; unitários, PostgreSQL, Kafka e REST Assured passam.
 
 - [ ] **Step 5: Commit**
 
-Run: `rtk git add README.md src/test/java/dev/iury/lifeos/finance/api && rtk git commit -m "docs: document finance service"`
+Run: `rtk git add README.md src/test/java/dev/iury/lifeos/finance/api`
+Run: `rtk git commit -m "docs: document finance service"`
 
 ## Verificação final de execução
 
