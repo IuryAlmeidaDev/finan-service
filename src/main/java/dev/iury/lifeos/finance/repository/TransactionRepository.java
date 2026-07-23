@@ -73,16 +73,20 @@ public class TransactionRepository implements PanacheRepositoryBase<FinancialTra
     }
 
     public BigDecimal sumPaidForAccount(UUID accountId, LocalDate throughDate) {
-        BigDecimal income = sumAccountSide(accountId, throughDate, TransactionType.INCOME, false);
-        BigDecimal expense = sumAccountSide(accountId, throughDate, TransactionType.EXPENSE, false);
+        return sumForAccount(accountId, throughDate, true);
+    }
+
+    public BigDecimal sumForAccount(UUID accountId, LocalDate throughDate, boolean paidOnly) {
+        BigDecimal income = sumAccountSide(accountId, throughDate, TransactionType.INCOME, false, paidOnly, false);
+        BigDecimal expense = sumAccountSide(accountId, throughDate, TransactionType.EXPENSE, false, paidOnly, false);
         BigDecimal outgoingTransfer =
-                sumAccountSide(accountId, throughDate, TransactionType.TRANSFER, false);
+                sumAccountSide(accountId, throughDate, TransactionType.TRANSFER, false, paidOnly, false);
         BigDecimal incomingTransfer =
-                sumAccountSide(accountId, throughDate, TransactionType.TRANSFER, true);
+                sumAccountSide(accountId, throughDate, TransactionType.TRANSFER, true, paidOnly, false);
         BigDecimal outgoingAdjustment =
-                sumAccountSide(accountId, throughDate, TransactionType.BALANCE_ADJUSTMENT, false);
+                sumAccountSide(accountId, throughDate, TransactionType.BALANCE_ADJUSTMENT, false, paidOnly, true);
         BigDecimal incomingAdjustment =
-                sumAccountSide(accountId, throughDate, TransactionType.BALANCE_ADJUSTMENT, true);
+                sumAccountSide(accountId, throughDate, TransactionType.BALANCE_ADJUSTMENT, true, paidOnly, false);
         return income.add(incomingTransfer).add(incomingAdjustment)
                 .subtract(expense).subtract(outgoingTransfer).subtract(outgoingAdjustment);
     }
@@ -135,18 +139,21 @@ public class TransactionRepository implements PanacheRepositoryBase<FinancialTra
     }
 
     private BigDecimal sumAccountSide(UUID accountId, LocalDate throughDate,
-            TransactionType type, boolean destinationSide) {
+            TransactionType type, boolean destinationSide, boolean paidOnly, boolean requiresDestinationNull) {
         String accountPath = destinationSide ? "t.destinationAccount.id" : "t.account.id";
+        String nullCheck = requiresDestinationNull ? " and t.destinationAccount is null " : "";
         String query = """
                 select coalesce(sum(t.amount), 0)
                   from FinancialTransaction t
                  where t.deletedAt is null
-                   and t.paid = true
+                   and (:paidOnly = false or t.paid = true)
                    and t.date <= :throughDate
                    and t.type = :type
                    and %s = :accountId
-                """.formatted(accountPath);
+                   %s
+                """.formatted(accountPath, nullCheck);
         return decimal(entityManager.createQuery(query, BigDecimal.class)
+                .setParameter("paidOnly", paidOnly)
                 .setParameter("throughDate", throughDate)
                 .setParameter("type", type)
                 .setParameter("accountId", accountId));
