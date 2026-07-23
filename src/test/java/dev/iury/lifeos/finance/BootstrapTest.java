@@ -3,6 +3,8 @@ package dev.iury.lifeos.finance;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
 
 import org.eclipse.microprofile.config.Config;
 import org.junit.jupiter.api.Test;
@@ -29,6 +31,14 @@ class BootstrapTest {
 
         try (Connection connection = dataSource.getConnection()) {
             assertThat(connection.isValid(2)).isTrue();
+
+            try (Statement statement = connection.createStatement();
+                    ResultSet result = statement.executeQuery(
+                            "select current_database(), current_setting('server_version_num')::int")) {
+                assertThat(result.next()).isTrue();
+                assertThat(result.getString(1)).isEqualTo("finance_db");
+                assertThat(result.getInt(2) / 10_000).isEqualTo(16);
+            }
         }
     }
 }
