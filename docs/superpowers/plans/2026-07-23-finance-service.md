@@ -160,6 +160,7 @@ quarkus.http.limits.max-body-size=10M
 %test.quarkus.datasource.devservices.enabled=true
 %test.quarkus.datasource.devservices.db-name=finance_db
 %test.quarkus.kafka.devservices.enabled=true
+quarkus.http.test-port=8082
 ```
 
 Não configure `quarkus.datasource.jdbc.url`, username ou password globalmente nem nos profiles dev/test: isso preserva a inicialização automática do PostgreSQL Dev Service.
