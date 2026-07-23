@@ -37,23 +37,37 @@ DECLARE
     parent_type varchar(10);
     grandparent_id uuid;
 BEGIN
-    IF NEW.parent_category_id IS NULL THEN
-        RETURN NEW;
+    IF NEW.parent_category_id IS NOT NULL THEN
+        SELECT type, parent_category_id
+          INTO parent_type, grandparent_id
+          FROM category
+         WHERE id = NEW.parent_category_id;
+
+        IF parent_type IS NULL THEN
+            RAISE EXCEPTION 'parent category does not exist';
+        END IF;
+        IF grandparent_id IS NOT NULL THEN
+            RAISE EXCEPTION 'categories support at most two levels';
+        END IF;
+        IF parent_type <> NEW.type THEN
+            RAISE EXCEPTION 'parent and child categories must have the same type';
+        END IF;
     END IF;
 
-    SELECT type, parent_category_id
-      INTO parent_type, grandparent_id
-      FROM category
-     WHERE id = NEW.parent_category_id;
-
-    IF parent_type IS NULL THEN
-        RAISE EXCEPTION 'parent category does not exist';
-    END IF;
-    IF grandparent_id IS NOT NULL THEN
-        RAISE EXCEPTION 'categories support at most two levels';
-    END IF;
-    IF parent_type <> NEW.type THEN
-        RAISE EXCEPTION 'parent and child categories must have the same type';
+    IF TG_OP = 'UPDATE' AND EXISTS (
+        SELECT 1 FROM category WHERE parent_category_id = NEW.id
+    ) THEN
+        IF NEW.parent_category_id IS NOT NULL THEN
+            RAISE EXCEPTION 'categories support at most two levels';
+        END IF;
+        IF EXISTS (
+            SELECT 1
+              FROM category
+             WHERE parent_category_id = NEW.id
+               AND type <> NEW.type
+        ) THEN
+            RAISE EXCEPTION 'parent and child categories must have the same type';
+        END IF;
     END IF;
     RETURN NEW;
 END;
