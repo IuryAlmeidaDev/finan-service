@@ -1,0 +1,7 @@
+.worktrees/
+.superpowers/
+target/
+.idea/
+.vscode/
+*.iml
+
