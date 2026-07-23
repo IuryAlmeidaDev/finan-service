@@ -2,7 +2,6 @@ package dev.iury.lifeos.finance.model;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -12,13 +11,11 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "account")
-public class Account {
+public class Account extends UpdatedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -49,21 +46,4 @@ public class Account {
     @Column(name = "is_archived", nullable = false)
     public boolean archived;
 
-    @Column(name = "created_at", nullable = false)
-    public LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    public LocalDateTime updatedAt;
-
-    @PrePersist
-    void createTimestamps() {
-        LocalDateTime now = LocalDateTime.now();
-        createdAt = now;
-        updatedAt = now;
-    }
-
-    @PreUpdate
-    void updateTimestamp() {
-        updatedAt = LocalDateTime.now();
-    }
 }

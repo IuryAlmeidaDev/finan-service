@@ -3,7 +3,6 @@ package dev.iury.lifeos.finance.model;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -16,12 +15,11 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "recurring_rule")
-public class RecurringRule {
+public class RecurringRule extends CreatedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -71,11 +69,4 @@ public class RecurringRule {
     @Column(name = "last_generated_date")
     public LocalDate lastGeneratedDate;
 
-    @Column(name = "created_at", nullable = false)
-    public LocalDateTime createdAt;
-
-    @PrePersist
-    void createTimestamp() {
-        createdAt = LocalDateTime.now();
-    }
 }

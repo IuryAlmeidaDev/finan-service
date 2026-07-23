@@ -15,13 +15,11 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "financial_transaction")
-public class FinancialTransaction {
+public class FinancialTransaction extends UpdatedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -87,21 +85,4 @@ public class FinancialTransaction {
     @Column(name = "deleted_at")
     public LocalDateTime deletedAt;
 
-    @Column(name = "created_at", nullable = false)
-    public LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    public LocalDateTime updatedAt;
-
-    @PrePersist
-    void createTimestamps() {
-        LocalDateTime now = LocalDateTime.now();
-        createdAt = now;
-        updatedAt = now;
-    }
-
-    @PreUpdate
-    void updateTimestamp() {
-        updatedAt = LocalDateTime.now();
-    }
 }

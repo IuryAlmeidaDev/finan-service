@@ -2,7 +2,6 @@ package dev.iury.lifeos.finance.model;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -15,12 +14,11 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "installment_group")
-public class InstallmentGroup {
+public class InstallmentGroup extends CreatedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -50,11 +48,4 @@ public class InstallmentGroup {
     @Column(nullable = false, length = 10)
     public InstallmentStatus status;
 
-    @Column(name = "created_at", nullable = false)
-    public LocalDateTime createdAt;
-
-    @PrePersist
-    void createTimestamp() {
-        createdAt = LocalDateTime.now();
-    }
 }

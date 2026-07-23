@@ -1,7 +1,6 @@
 package dev.iury.lifeos.finance.model;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -14,13 +13,12 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
 @Entity
 @Table(name = "budget", uniqueConstraints = @UniqueConstraint(columnNames = {"category_id", "year", "month"}))
-public class Budget {
+public class Budget extends CreatedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -49,11 +47,4 @@ public class Budget {
     @Column(name = "include_pending", nullable = false)
     public boolean includePending;
 
-    @Column(name = "created_at", nullable = false)
-    public LocalDateTime createdAt;
-
-    @PrePersist
-    void createTimestamp() {
-        createdAt = LocalDateTime.now();
-    }
 }

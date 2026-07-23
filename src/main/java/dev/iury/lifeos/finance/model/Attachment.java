@@ -1,6 +1,5 @@
 package dev.iury.lifeos.finance.model;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -11,12 +10,11 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "attachment")
-public class Attachment {
+public class Attachment extends CreatedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -38,11 +36,4 @@ public class Attachment {
     @Column(name = "storage_path", nullable = false, length = 1024)
     public String storagePath;
 
-    @Column(name = "created_at", nullable = false)
-    public LocalDateTime createdAt;
-
-    @PrePersist
-    void createTimestamp() {
-        createdAt = LocalDateTime.now();
-    }
 }
