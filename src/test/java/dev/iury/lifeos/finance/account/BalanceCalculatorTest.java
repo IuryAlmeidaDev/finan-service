@@ -18,7 +18,7 @@ import dev.iury.lifeos.finance.model.TransactionType;
 import dev.iury.lifeos.finance.repository.AccountRepository;
 import dev.iury.lifeos.finance.repository.CategoryRepository;
 import dev.iury.lifeos.finance.repository.TransactionRepository;
-import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.TestTransaction;`r`nimport io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
@@ -40,7 +40,7 @@ class BalanceCalculatorTest {
     void setup() {
         transactions.deleteAll();
         accounts.deleteAll();
-        categories.deleteAll();
+        categories.delete("parentCategory is not null and system = false");`r`n        categories.delete("system", false);
 
         account = new Account();
         account.name = "Main";

@@ -12,7 +12,7 @@ import dev.iury.lifeos.finance.account.AccountService;
 import dev.iury.lifeos.finance.model.Account;
 import dev.iury.lifeos.finance.model.AccountType;
 import dev.iury.lifeos.finance.repository.AccountRepository;
-import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.TestTransaction;`r`nimport io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
