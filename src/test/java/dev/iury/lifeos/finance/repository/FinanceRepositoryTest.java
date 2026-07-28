@@ -9,7 +9,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-import org.junit.jupiter.api.BeforeEach;`r`nimport org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import dev.iury.lifeos.finance.model.Account;
 import dev.iury.lifeos.finance.model.AccountType;
@@ -28,14 +29,28 @@ import io.quarkus.panache.common.Page;
 import io.quarkus.test.TestTransaction;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
-import jakarta.persistence.EntityManager;`r`nimport jakarta.transaction.Transactional;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 
 @QuarkusTest
 class FinanceRepositoryTest {
 
     @Inject EntityManager entityManager;
     @Inject TransactionRepository transactions;
-    @Inject CategoryRepository categories;`r`n`r`n    @BeforeEach`r`n    @Transactional`r`n    void cleanTestData() {`r`n        transactions.deleteAll();`r`n        entityManager.createQuery("delete from InstallmentGroup").executeUpdate();`r`n        entityManager.createQuery("delete from RecurringRule").executeUpdate();`r`n        entityManager.createQuery("delete from Account").executeUpdate();`r`n        categories.delete("parentCategory is not null and system = false");`r`n        categories.delete("system", false);`r`n    }
+    @Inject CategoryRepository categories;
+
+    @BeforeEach
+    @Transactional
+    void cleanTestData() {
+        transactions.deleteAll();
+        entityManager.createQuery("delete from InstallmentGroup").executeUpdate();
+        entityManager.createQuery("delete from RecurringRule").executeUpdate();
+        entityManager.createQuery("delete from Budget").executeUpdate();
+        entityManager.createQuery("delete from IncomeGoal").executeUpdate();
+        entityManager.createQuery("delete from Account").executeUpdate();
+        categories.delete("parentCategory is not null and system = false");
+        categories.delete("system = false");
+    }
 
     @Test
     @TestTransaction

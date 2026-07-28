@@ -20,7 +20,8 @@ import dev.iury.lifeos.finance.repository.BudgetRepository;
 import dev.iury.lifeos.finance.repository.CategoryRepository;
 import dev.iury.lifeos.finance.repository.IncomeGoalRepository;
 import dev.iury.lifeos.finance.repository.TransactionRepository;
-import io.quarkus.test.TestTransaction;`r`nimport io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.TestTransaction;
+import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
