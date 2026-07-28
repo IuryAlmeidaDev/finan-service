@@ -4,8 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.UUID;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -16,17 +16,25 @@ import dev.iury.lifeos.finance.model.CategoryType;
 import dev.iury.lifeos.finance.model.FinancialTransaction;
 import dev.iury.lifeos.finance.model.TransactionType;
 import dev.iury.lifeos.finance.repository.AccountRepository;
+import dev.iury.lifeos.finance.repository.BudgetRepository;
 import dev.iury.lifeos.finance.repository.CategoryRepository;
+import dev.iury.lifeos.finance.repository.IncomeGoalRepository;
 import dev.iury.lifeos.finance.repository.TransactionRepository;
 import io.quarkus.test.TestTransaction;`r`nimport io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
+/**
+ * Uses @Transactional on @BeforeEach and @AfterEach for committed setup/cleanup,
+ * guaranteeing no data leakage to other test classes.
+ */
 @QuarkusTest
 class BalanceCalculatorTest {
 
     @Inject BalanceCalculator calculator;
     @Inject AccountRepository accounts;
+    @Inject BudgetRepository budgets;
+    @Inject IncomeGoalRepository incomeGoals;
     @Inject CategoryRepository categories;
     @Inject TransactionRepository transactions;
 
@@ -38,9 +46,7 @@ class BalanceCalculatorTest {
     @BeforeEach
     @Transactional
     void setup() {
-        transactions.deleteAll();
-        accounts.deleteAll();
-        categories.delete("parentCategory is not null and system = false");`r`n        categories.delete("system", false);
+        cleanAll();
 
         account = new Account();
         account.name = "Main";
@@ -69,28 +75,42 @@ class BalanceCalculatorTest {
         categories.persist(expenseCat);
     }
 
+    @AfterEach
+    @Transactional
+    void teardown() {
+        cleanAll();
+    }
+
+    private void cleanAll() {
+        transactions.deleteAll();
+        budgets.deleteAll();
+        incomeGoals.deleteAll();
+        accounts.deleteAll();
+        categories.delete("system = false");
+    }
+
     @Test
     @Transactional
     void shouldCalculateCorrectlyWithAllTypes() {
         // Realized: date <= today and paid = true
-        // Projected: date <= end of current month (since we test against today, it is included)
-        
+        // Projected: date <= end of current month
+
         // Income paid -> Realized +100
         createTx(account, null, "100.00", TransactionType.INCOME, true, LocalDate.now());
-        
+
         // Income pending -> Realized +0, Projected +200
         createTx(account, null, "200.00", TransactionType.INCOME, false, LocalDate.now());
-        
+
         // Expense paid -> Realized -50
         createTx(account, null, "50.00", TransactionType.EXPENSE, true, LocalDate.now());
-        
+
         // Outgoing Transfer paid -> Realized -30
         createTx(account, otherAccount, "30.00", TransactionType.TRANSFER, true, LocalDate.now());
-        
+
         // Incoming Transfer paid -> Realized +40
         createTx(otherAccount, account, "40.00", TransactionType.TRANSFER, true, LocalDate.now());
 
-        // Balance Adjustment outgoing (reducing balance -> account is origin)
+        // Balance Adjustment outgoing (reducing balance -> account is origin, dest null)
         createTx(account, null, "20.00", TransactionType.BALANCE_ADJUSTMENT, true, LocalDate.now());
 
         // Balance Adjustment incoming (increasing balance -> account is destination)
