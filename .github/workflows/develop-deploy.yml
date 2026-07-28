@@ -67,11 +67,7 @@ jobs:
         shell: bash
         run: |
           ssh -i ~/.ssh/finan-deploy '${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}' \
-            'mkdir -p /opt/finan-service'
-          scp -i ~/.ssh/finan-deploy deploy/docker-compose.yml \
-            '${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/tmp/finan-service-docker-compose.yml'
-          ssh -i ~/.ssh/finan-deploy '${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}' \
-            'sudo mv /tmp/finan-service-docker-compose.yml /opt/finan-service/docker-compose.yml && sudo chmod 644 /opt/finan-service/docker-compose.yml'
+            'sudo mkdir -p /opt/finan-service && sudo tee /opt/finan-service/docker-compose.yml >/dev/null && sudo chmod 644 /opt/finan-service/docker-compose.yml' < deploy/docker-compose.yml
 
       - name: Deploy on VPS
         shell: bash
