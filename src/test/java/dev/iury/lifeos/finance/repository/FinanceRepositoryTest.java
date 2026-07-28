@@ -49,6 +49,7 @@ class FinanceRepositoryTest {
         entityManager.createQuery("delete from IncomeGoal").executeUpdate();
         entityManager.createQuery("delete from Account").executeUpdate();
         categories.delete("parentCategory is not null and system = false");
+        categories.delete("system = false");
     }
 
     @Test
