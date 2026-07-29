@@ -63,12 +63,6 @@ jobs:
           chmod 600 ~/.ssh/finan-deploy
           ssh-keyscan -H '${{ secrets.VPS_HOST }}' >> ~/.ssh/known_hosts
 
-      - name: Upload Compose file
-        shell: bash
-        run: |
-          ssh -i ~/.ssh/finan-deploy '${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}' \
-            'sudo mkdir -p /opt/finan-service && sudo tee /opt/finan-service/docker-compose.yml >/dev/null && sudo chmod 644 /opt/finan-service/docker-compose.yml' < deploy/docker-compose.yml
-
       - name: Deploy on VPS
         shell: bash
         env:
