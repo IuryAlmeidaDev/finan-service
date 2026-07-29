@@ -65,13 +65,7 @@ jobs:
 
       - name: Deploy on VPS
         shell: bash
-        env:
-          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
-          GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
         run: |
-          printf '%s' "$GHCR_READ_TOKEN" | ssh -i ~/.ssh/finan-deploy \
-            '${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}' \
-            "docker login ghcr.io --username '$GHCR_USERNAME' --password-stdin"
           ssh -i ~/.ssh/finan-deploy '${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}' \
             'cd /opt/finan-service && IMAGE_TAG=develop docker compose pull app && IMAGE_TAG=develop docker compose up -d --remove-orphans'
 
