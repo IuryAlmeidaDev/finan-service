@@ -55,22 +55,16 @@ jobs:
           push: true
           tags: ${{ env.IMAGE_NAME }}:develop
 
-      - name: Configure SSH
-        shell: bash
-        run: |
-          install -m 700 -d ~/.ssh
-          printf '%s\n' '${{ secrets.VPS_SSH_KEY }}' > ~/.ssh/finan-deploy
-          chmod 600 ~/.ssh/finan-deploy
-          ssh-keyscan -H '${{ secrets.VPS_HOST }}' >> ~/.ssh/known_hosts
-
-      - name: Deploy on VPS
-        shell: bash
-        run: |
-          ssh -i ~/.ssh/finan-deploy '${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}' \
-            'cd /opt/finan-service && IMAGE_TAG=develop docker compose pull app && IMAGE_TAG=develop docker compose up -d --remove-orphans'
-
-      - name: Verify deployment
-        shell: bash
-        run: |
-          ssh -i ~/.ssh/finan-deploy '${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}' \
-            'cd /opt/finan-service && docker compose ps && code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 10 http://127.0.0.1:8082/ || true); test "$code" != "000"'
+      - name: Deploy and Verify on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/finan-service
+            IMAGE_TAG=develop docker compose pull app
+            IMAGE_TAG=develop docker compose up -d --remove-orphans
+            docker compose ps
+            code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 10 http://127.0.0.1:8082/ || true)
+            test "$code" != "000"
