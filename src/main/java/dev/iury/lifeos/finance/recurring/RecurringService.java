@@ -114,6 +114,42 @@ public class RecurringService {
                 "recurringRule.id = ?1 and deletedAt is null order by recurringInstanceIndex", ruleId);
     }
 
+    /** Generates missing occurrences through the requested date, without duplicating existing ones. */
+    @Transactional
+    public void generateOccurrences(UUID ruleId, LocalDate throughDate) {
+        RecurringRule rule = findRule(ruleId);
+        if (!rule.active || throughDate == null) {
+            return;
+        }
+
+        LocalDate limit = rule.endDate == null || rule.endDate.isAfter(throughDate) ? throughDate : rule.endDate;
+        LocalDate occurrenceDate = rule.lastGeneratedDate == null
+                ? rule.startDate
+                : dateCalculator.nextDate(rule.lastGeneratedDate, rule.frequency, rule.dayOfMonth, rule.dayOfWeek);
+        int nextIndex = nextInstanceIndex(rule.id);
+
+        while (!occurrenceDate.isAfter(limit)) {
+            FinancialTransaction occurrence = new FinancialTransaction();
+            occurrence.account = rule.account;
+            occurrence.type = rule.type;
+            occurrence.amount = rule.amount;
+            occurrence.category = rule.category;
+            occurrence.description = rule.description;
+            occurrence.date = occurrenceDate;
+            occurrence.paid = rule.autoConfirm;
+            occurrence.recurringRule = rule;
+            occurrence.recurringInstanceIndex = nextIndex++;
+            transactions.persist(occurrence);
+
+            rule.lastGeneratedDate = occurrenceDate;
+            if (rule.endDate != null && occurrenceDate.equals(rule.endDate)) {
+                rule.active = false;
+                return;
+            }
+            occurrenceDate = dateCalculator.nextDate(occurrenceDate, rule.frequency, rule.dayOfMonth, rule.dayOfWeek);
+        }
+    }
+
     // ────────────────────────────────────────────────────────────────
     // DEACTIVATE RULE
     // ────────────────────────────────────────────────────────────────
@@ -160,8 +196,27 @@ public class RecurringService {
                 List<FinancialTransaction> futures = transactions.list(
                         "recurringRule.id = ?1 and deletedAt is null and recurringInstanceIndex >= ?2 order by recurringInstanceIndex",
                         tx.recurringRule.id, tx.recurringInstanceIndex);
+                List<FinancialTransaction> movable = futures.stream().filter(f -> !f.paid).toList();
+                if (movable.isEmpty()) {
+                    return;
+                }
+                RecurringRule originalRule = tx.recurringRule;
+                RecurringRule newRule = copyRuleForFuture(originalRule, tx.date, command, newCategory);
+                rules.persist(newRule);
                 for (FinancialTransaction f : futures) {
+                    if (!f.paid) {
+                        f.recurringRule = newRule;
+                    }
                     applyUpdate(f, command, newCategory);
+                }
+                newRule.lastGeneratedDate = movable.stream()
+                        .map(f -> f.date)
+                        .max(LocalDate::compareTo)
+                        .orElse(null);
+                originalRule.endDate = previousOccurrenceDate(originalRule.id, tx.recurringInstanceIndex);
+                originalRule.lastGeneratedDate = originalRule.endDate;
+                if (originalRule.endDate == null) {
+                    originalRule.active = false;
                 }
             }
             case ALL -> {
@@ -202,13 +257,19 @@ public class RecurringService {
         LocalDateTime now = LocalDateTime.now();
 
         switch (scope) {
-            case ONLY_THIS -> tx.deletedAt = now;
+            case ONLY_THIS -> {
+                if (!tx.paid) {
+                    tx.deletedAt = now;
+                }
+            }
             case THIS_AND_FUTURE -> {
                 List<FinancialTransaction> futures = transactions.list(
                         "recurringRule.id = ?1 and deletedAt is null and recurringInstanceIndex >= ?2",
                         tx.recurringRule.id, tx.recurringInstanceIndex);
                 for (FinancialTransaction f : futures) {
-                    f.deletedAt = now;
+                    if (!f.paid) {
+                        f.deletedAt = now;
+                    }
                 }
                 tx.recurringRule.active = false;
             }
@@ -217,7 +278,9 @@ public class RecurringService {
                         "recurringRule.id = ?1 and deletedAt is null",
                         tx.recurringRule.id);
                 for (FinancialTransaction a : all) {
-                    a.deletedAt = now;
+                    if (!a.paid) {
+                        a.deletedAt = now;
+                    }
                 }
                 tx.recurringRule.active = false;
             }
@@ -237,9 +300,40 @@ public class RecurringService {
     }
 
     private void applyUpdate(FinancialTransaction tx, RecurringUpdateCommand cmd, Category newCategory) {
+        if (tx.paid) {
+            return;
+        }
         if (cmd.amount() != null) tx.amount = cmd.amount();
         if (cmd.description() != null) tx.description = cmd.description();
         if (newCategory != null) tx.category = newCategory;
         if (cmd.paid() != null) tx.paid = cmd.paid();
+    }
+
+    private int nextInstanceIndex(UUID ruleId) {
+        List<FinancialTransaction> occurrences = listOccurrences(ruleId);
+        return occurrences.isEmpty() ? 1 : occurrences.get(occurrences.size() - 1).recurringInstanceIndex + 1;
+    }
+
+    private LocalDate previousOccurrenceDate(UUID ruleId, Integer index) {
+        return transactions.find("recurringRule.id = ?1 and deletedAt is null and recurringInstanceIndex < ?2 order by recurringInstanceIndex desc",
+                ruleId, index).firstResultOptional().map(tx -> tx.date).orElse(null);
+    }
+
+    private RecurringRule copyRuleForFuture(RecurringRule source, LocalDate startDate,
+            RecurringUpdateCommand command, Category newCategory) {
+        RecurringRule copy = new RecurringRule();
+        copy.account = source.account;
+        copy.amount = command.amount() == null ? source.amount : command.amount();
+        copy.type = source.type;
+        copy.category = newCategory == null ? source.category : newCategory;
+        copy.description = command.description() == null ? source.description : command.description();
+        copy.frequency = source.frequency;
+        copy.dayOfMonth = source.dayOfMonth;
+        copy.dayOfWeek = source.dayOfWeek;
+        copy.startDate = startDate;
+        copy.endDate = source.endDate;
+        copy.autoConfirm = source.autoConfirm;
+        copy.active = source.active;
+        return copy;
     }
 }

@@ -143,6 +143,27 @@ class RecurringScopeTest {
                 .hasMessageContaining("already inactive");
     }
 
+    @Test
+    @Transactional
+    void shouldGenerateOccurrencesThroughEndDateAndDeactivateRule() {
+        RecurringRule rule = recurringService.createRule(
+                account.id, TransactionType.EXPENSE, new BigDecimal("100.00"),
+                expenseCategory.id, "Internet", RecurringFrequency.MONTHLY,
+                10, null, LocalDate.of(2026, 1, 10), LocalDate.of(2026, 3, 10), true);
+
+        recurringService.generateOccurrences(rule.id, LocalDate.of(2026, 4, 1));
+        em.flush();
+        em.clear();
+
+        List<FinancialTransaction> occurrences = recurringService.listOccurrences(rule.id);
+        assertThat(occurrences).hasSize(3);
+        assertThat(occurrences).extracting(tx -> tx.date)
+                .containsExactly(LocalDate.of(2026, 1, 10), LocalDate.of(2026, 2, 10), LocalDate.of(2026, 3, 10));
+        assertThat(occurrences).allSatisfy(tx -> assertThat(tx.paid).isTrue());
+        assertThat(rules.findById(rule.id).lastGeneratedDate).isEqualTo(LocalDate.of(2026, 3, 10));
+        assertThat(rules.findById(rule.id).active).isFalse();
+    }
+
     // ────────────────────────────────────────────────────────────────
     // UPDATE OCCURRENCE — ONLY_THIS
     // ────────────────────────────────────────────────────────────────
@@ -172,7 +193,7 @@ class RecurringScopeTest {
 
     @Test
     @Transactional
-    void shouldUpdateThisAndFutureOccurrences() {
+    void shouldMoveThisAndFutureOccurrencesToNewRule() {
         RecurringRule rule = createTestRule();
         List<FinancialTransaction> txs = createOccurrences(rule, 4);
 
@@ -182,11 +203,31 @@ class RecurringScopeTest {
         em.flush();
         em.clear();
 
-        List<FinancialTransaction> reloaded = recurringService.listOccurrences(rule.id);
-        assertThat(reloaded.get(0).amount).isEqualByComparingTo("100.00"); // index 0 unchanged
-        assertThat(reloaded.get(1).amount).isEqualByComparingTo("300.00"); // index 1 updated
-        assertThat(reloaded.get(2).amount).isEqualByComparingTo("300.00"); // index 2 updated
-        assertThat(reloaded.get(3).amount).isEqualByComparingTo("300.00"); // index 3 updated
+        List<FinancialTransaction> originalOccurrences = recurringService.listOccurrences(rule.id);
+        assertThat(originalOccurrences).hasSize(1);
+        assertThat(originalOccurrences.get(0).amount).isEqualByComparingTo("100.00");
+
+        FinancialTransaction moved = transactions.findById(txs.get(1).id);
+        assertThat(moved.recurringRule.id).isNotEqualTo(rule.id);
+        assertThat(moved.amount).isEqualByComparingTo("300.00");
+    }
+
+    @Test
+    @Transactional
+    void shouldNeverUpdatePaidOccurrence() {
+        RecurringRule rule = createTestRule();
+        List<FinancialTransaction> txs = createOccurrences(rule, 3);
+        txs.get(1).paid = true;
+
+        recurringService.updateOccurrence(txs.get(1).id, RecurrenceScope.ALL,
+                new RecurringUpdateCommand(new BigDecimal("300.00"), "Updated", null, false));
+        em.flush();
+        em.clear();
+
+        FinancialTransaction paid = transactions.findById(txs.get(1).id);
+        assertThat(paid.amount).isEqualByComparingTo("100.00");
+        assertThat(paid.description).isEqualTo("Internet");
+        assertThat(paid.paid).isTrue();
     }
 
     // ────────────────────────────────────────────────────────────────
