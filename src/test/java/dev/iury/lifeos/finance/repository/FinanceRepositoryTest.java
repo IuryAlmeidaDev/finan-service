@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import dev.iury.lifeos.finance.model.Account;
@@ -29,6 +30,7 @@ import io.quarkus.test.TestTransaction;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 
 @QuarkusTest
 class FinanceRepositoryTest {
@@ -36,6 +38,19 @@ class FinanceRepositoryTest {
     @Inject EntityManager entityManager;
     @Inject TransactionRepository transactions;
     @Inject CategoryRepository categories;
+
+    @BeforeEach
+    @Transactional
+    void cleanTestData() {
+        transactions.deleteAll();
+        entityManager.createQuery("delete from InstallmentGroup").executeUpdate();
+        entityManager.createQuery("delete from RecurringRule").executeUpdate();
+        entityManager.createQuery("delete from Budget").executeUpdate();
+        entityManager.createQuery("delete from IncomeGoal").executeUpdate();
+        entityManager.createQuery("delete from Account").executeUpdate();
+        categories.delete("parentCategory is not null and system = false");
+        categories.delete("system = false");
+    }
 
     @Test
     @TestTransaction
