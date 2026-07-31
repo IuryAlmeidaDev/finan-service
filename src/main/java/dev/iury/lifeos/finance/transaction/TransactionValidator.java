@@ -87,9 +87,13 @@ public class TransactionValidator {
     }
 
     /**
-     * Rejects BALANCE_ADJUSTMENT type in generic create path.
+     * Restricts the generic create path to regular income and expense transactions.
      */
-    public void rejectBalanceAdjustmentType(TransactionType type) {
+    public void rejectSpecialTransactionType(TransactionType type) {
+        if (type == TransactionType.TRANSFER) {
+            throw new IllegalArgumentException(
+                    "TRANSFER transactions must be created via the createTransfer() method");
+        }
         if (type == TransactionType.BALANCE_ADJUSTMENT) {
             throw new IllegalArgumentException(
                     "BALANCE_ADJUSTMENT transactions must be created via the adjust() method");

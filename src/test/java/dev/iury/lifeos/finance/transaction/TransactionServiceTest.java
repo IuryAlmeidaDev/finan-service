@@ -198,6 +198,15 @@ class TransactionServiceTest {
             .hasMessageContaining("destination");
     }
 
+    @Test
+    void shouldRejectTransferThroughGenericCreate() {
+        assertThatThrownBy(() -> transactionService.create(
+                account.id, TransactionType.TRANSFER, new BigDecimal("100.00"),
+                LocalDate.now(), null, "Invalid transfer", false, false))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("TRANSFER");
+    }
+
     // ────────────────────────────────────────────────────────────────
     // PAY / UNPAY
     // ────────────────────────────────────────────────────────────────
@@ -345,6 +354,16 @@ class TransactionServiceTest {
 
         Account reloaded = accounts.findById(account.id);
         assertThat(reloaded.archived).isTrue();
+    }
+
+    @Test
+    @Transactional
+    void shouldUnarchiveAccount() {
+        accountService.archive(account.id);
+
+        accountService.unarchive(account.id);
+
+        assertThat(accounts.findById(account.id).archived).isFalse();
     }
 
     @Test
