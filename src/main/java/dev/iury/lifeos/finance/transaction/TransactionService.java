@@ -63,7 +63,7 @@ public class TransactionService {
             boolean paid,
             boolean ignoredFromBudget) {
 
-        validator.rejectBalanceAdjustmentType(type);
+        validator.rejectSpecialTransactionType(type);
         Account account = validator.requireActiveAccount(accountId);
         validator.requirePositiveAmount(amount);
         Category category = validator.requireCompatibleCategory(categoryId, type);
