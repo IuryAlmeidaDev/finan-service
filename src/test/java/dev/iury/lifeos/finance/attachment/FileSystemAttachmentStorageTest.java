@@ -20,8 +20,9 @@ class FileSystemAttachmentStorageTest {
     void storesContentUsingAGeneratedFileNameInsideTheConfiguredDirectory() throws Exception {
         FileSystemAttachmentStorage storage = new FileSystemAttachmentStorage(directory);
 
-        String storedName = storage.store("../receipt.pdf",
-                new ByteArrayInputStream("receipt".getBytes(StandardCharsets.UTF_8)));
+        StoredAttachment stored = storage.store("../receipt.pdf",
+                new ByteArrayInputStream("receipt".getBytes(StandardCharsets.UTF_8)), 10);
+        String storedName = stored.storedName();
 
         assertThat(storedName).doesNotContain("..").doesNotContain("/").doesNotContain("\\");
         assertThat(Files.readString(directory.resolve(storedName))).isEqualTo("receipt");
@@ -38,10 +39,20 @@ class FileSystemAttachmentStorageTest {
     @Test
     void removesAStoredFile() throws Exception {
         FileSystemAttachmentStorage storage = new FileSystemAttachmentStorage(directory);
-        String storedName = storage.store("receipt.pdf", new ByteArrayInputStream(new byte[] {1}));
+        String storedName = storage.store("receipt.pdf", new ByteArrayInputStream(new byte[] {1}), 10).storedName();
 
         storage.delete(storedName);
 
         assertThat(Files.exists(directory.resolve(storedName))).isFalse();
+    }
+
+    @Test
+    void rejectsContentThatExceedsTheConfiguredLimitWithoutLeavingAFile() throws Exception {
+        FileSystemAttachmentStorage storage = new FileSystemAttachmentStorage(directory);
+
+        assertThatThrownBy(() -> storage.store("receipt.pdf", new ByteArrayInputStream(new byte[11]), 10))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("exceeds");
+        assertThat(Files.list(directory).toList()).isEmpty();
     }
 }

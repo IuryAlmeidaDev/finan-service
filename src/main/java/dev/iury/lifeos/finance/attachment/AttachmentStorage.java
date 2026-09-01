@@ -5,7 +5,7 @@ import java.io.InputStream;
 
 public interface AttachmentStorage {
 
-    String store(String originalFileName, InputStream content) throws IOException;
+    StoredAttachment store(String originalFileName, InputStream content, long maximumSizeBytes) throws IOException;
 
     void delete(String storedName) throws IOException;
 }

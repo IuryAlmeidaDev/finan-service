@@ -15,7 +15,7 @@ public class BudgetCalculator {
 
     public BigDecimal progress(BigDecimal limitAmount, BigDecimal rolloverAmount, BigDecimal spent) {
         BigDecimal available = limitAmount.add(rolloverAmount);
-        if (available.signum() <= 0) {
+        if (available.signum() == 0) {
             return BigDecimal.ZERO.setScale(2);
         }
         return spent.multiply(HUNDRED).divide(available, 2, RoundingMode.HALF_UP);

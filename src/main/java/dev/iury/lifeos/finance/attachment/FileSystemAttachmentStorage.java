@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -28,12 +27,28 @@ public class FileSystemAttachmentStorage implements AttachmentStorage {
     }
 
     @Override
-    public String store(String originalFileName, InputStream content) throws IOException {
+    public StoredAttachment store(String originalFileName, InputStream content, long maximumSizeBytes) throws IOException {
+        if (maximumSizeBytes <= 0) {
+            throw new IllegalArgumentException("Maximum attachment size must be greater than zero");
+        }
         Files.createDirectories(root);
         String storedName = UUID.randomUUID().toString();
         Path target = resolve(storedName);
-        Files.copy(content, target, StandardCopyOption.REPLACE_EXISTING);
-        return storedName;
+        long size = 0;
+        byte[] buffer = new byte[8192];
+        try (var output = Files.newOutputStream(target)) {
+            for (int read; (read = content.read(buffer)) != -1;) {
+                size += read;
+                if (size > maximumSizeBytes) {
+                    throw new IllegalArgumentException("Attachment content exceeds the configured limit");
+                }
+                output.write(buffer, 0, read);
+            }
+        } catch (IOException | RuntimeException exception) {
+            Files.deleteIfExists(target);
+            throw exception;
+        }
+        return new StoredAttachment(storedName, size);
     }
 
     @Override

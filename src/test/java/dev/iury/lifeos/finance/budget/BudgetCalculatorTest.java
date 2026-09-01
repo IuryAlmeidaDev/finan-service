@@ -43,4 +43,10 @@ class BudgetCalculatorTest {
         assertThat(calculator.progress(BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("10.00")))
                 .isEqualByComparingTo("0.00");
     }
+
+    @Test
+    void preservesNegativeProgressWhenFullRolloverMakesAvailableAmountNegative() {
+        assertThat(calculator.progress(new BigDecimal("100.00"), new BigDecimal("-150.00"), new BigDecimal("10.00")))
+                .isEqualByComparingTo("-20.00");
+    }
 }
