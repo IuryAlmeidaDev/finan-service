@@ -3,6 +3,7 @@ package dev.iury.lifeos.finance.goal;
 import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.UUID;
+import java.util.List;
 
 import dev.iury.lifeos.finance.budget.BudgetCalculator;
 import dev.iury.lifeos.finance.common.Money;
@@ -23,6 +24,8 @@ public class IncomeGoalService {
     @Inject CategoryRepository categories;
     @Inject TransactionRepository transactions;
     @Inject BudgetCalculator calculator;
+
+    public List<IncomeGoal> list() { return goals.list("year desc, month desc"); }
 
     @Transactional
     public IncomeGoal create(UUID categoryId, int year, int month, BigDecimal targetAmount) {

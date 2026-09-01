@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.UUID;
+import java.util.List;
 
 import dev.iury.lifeos.finance.common.Money;
 import dev.iury.lifeos.finance.model.Budget;
@@ -24,6 +25,8 @@ public class BudgetService {
     @Inject CategoryRepository categories;
     @Inject TransactionRepository transactions;
     @Inject BudgetCalculator calculator;
+
+    public List<Budget> list() { return budgets.list("year desc, month desc"); }
 
     @Transactional
     public Budget create(UUID categoryId, int year, int month, BigDecimal limitAmount,
