@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.List;
 
 import dev.iury.lifeos.finance.account.Balance;
 import dev.iury.lifeos.finance.account.BalanceCalculator;
@@ -12,6 +13,7 @@ import dev.iury.lifeos.finance.model.Category;
 import dev.iury.lifeos.finance.model.FinancialTransaction;
 import dev.iury.lifeos.finance.model.TransactionType;
 import dev.iury.lifeos.finance.repository.TransactionRepository;
+import io.quarkus.panache.common.Page;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -42,6 +44,13 @@ public class TransactionService {
             throw new IllegalArgumentException("Transaction not found: " + id);
         }
         return tx;
+    }
+
+    public List<FinancialTransaction> search(TransactionFilter filter, int page, int size) {
+        if (page < 0 || size < 1 || size > 100) {
+            throw new IllegalArgumentException("Page must be non-negative and size between 1 and 100");
+        }
+        return transactions.search(filter, Page.of(page, size)).list();
     }
 
     // ────────────────────────────────────────────────────────────────

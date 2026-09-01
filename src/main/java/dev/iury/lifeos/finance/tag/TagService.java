@@ -20,6 +20,29 @@ public class TagService {
     @Inject TagRepository tags;
     @Inject EntityManager em;
 
+    public List<Tag> list() {
+        return tags.list("order by name asc");
+    }
+
+    public Tag findById(UUID id) {
+        return tags.findByIdOptional(id).orElseThrow(() -> new IllegalArgumentException("Tag not found"));
+    }
+
+    @Transactional
+    public Tag update(UUID id, String name, String color) {
+        Tag tag = findById(id);
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Tag name is required");
+        }
+        long duplicates = tags.count("lower(name) = ?1 and id <> ?2", name.toLowerCase(), id);
+        if (duplicates > 0) {
+            throw new IllegalArgumentException("Tag with this name already exists");
+        }
+        tag.name = name;
+        tag.color = color;
+        return tag;
+    }
+
     @Transactional
     public Tag create(String name, String color) {
         long count = tags.count("lower(name)", name.toLowerCase());
