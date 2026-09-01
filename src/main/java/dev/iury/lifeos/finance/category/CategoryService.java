@@ -1,6 +1,7 @@
 package dev.iury.lifeos.finance.category;
 
 import java.util.UUID;
+import java.util.List;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -16,6 +17,15 @@ public class CategoryService {
 
     @Inject CategoryRepository categories;
     @Inject TransactionRepository transactions;
+
+    public List<Category> list(boolean includeArchived) {
+        return includeArchived ? categories.listAll() : categories.list("archived = false");
+    }
+
+    public Category findById(UUID id) {
+        return categories.findByIdOptional(id)
+                .orElseThrow(() -> new IllegalArgumentException("Category not found: " + id));
+    }
 
     @Transactional
     public Category create(String name, CategoryType type, UUID parentId, String iconSlug, String color) {
