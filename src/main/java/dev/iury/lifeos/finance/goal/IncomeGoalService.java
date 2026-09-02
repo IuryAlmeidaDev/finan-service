@@ -13,6 +13,7 @@ import dev.iury.lifeos.finance.model.IncomeGoal;
 import dev.iury.lifeos.finance.repository.CategoryRepository;
 import dev.iury.lifeos.finance.repository.IncomeGoalRepository;
 import dev.iury.lifeos.finance.repository.TransactionRepository;
+import io.quarkus.panache.common.Sort;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -25,7 +26,10 @@ public class IncomeGoalService {
     @Inject TransactionRepository transactions;
     @Inject BudgetCalculator calculator;
 
-    public List<IncomeGoal> list() { return goals.list("year desc, month desc"); }
+    public List<IncomeGoal> list() {
+        return goals.findAll(Sort.by("year", Sort.Direction.Descending)
+                .and("month", Sort.Direction.Descending)).list();
+    }
 
     @Transactional
     public IncomeGoal create(UUID categoryId, int year, int month, BigDecimal targetAmount) {

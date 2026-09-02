@@ -14,6 +14,7 @@ import dev.iury.lifeos.finance.model.RolloverType;
 import dev.iury.lifeos.finance.repository.BudgetRepository;
 import dev.iury.lifeos.finance.repository.CategoryRepository;
 import dev.iury.lifeos.finance.repository.TransactionRepository;
+import io.quarkus.panache.common.Sort;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -26,7 +27,10 @@ public class BudgetService {
     @Inject TransactionRepository transactions;
     @Inject BudgetCalculator calculator;
 
-    public List<Budget> list() { return budgets.list("year desc, month desc"); }
+    public List<Budget> list() {
+        return budgets.findAll(Sort.by("year", Sort.Direction.Descending)
+                .and("month", Sort.Direction.Descending)).list();
+    }
 
     @Transactional
     public Budget create(UUID categoryId, int year, int month, BigDecimal limitAmount,
